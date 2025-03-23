@@ -1,0 +1,147 @@
+import tkinter as tk
+from tkinter import messagebox
+
+class GomokuGUI:
+    def __init__(self, board_size=15):
+        # 初始化游戏参数
+        self.board_size = board_size
+        self.cell_size = 40      # 每个格子像素大小
+        self.offset = 20         # 棋盘边缘留白
+        self.player = "black"    # 当前玩家
+
+        # 创建主窗口
+        self.window = tk.Tk()
+        self.window.title("五子棋 - 鼠标操作版")
+
+        # 棋盘画布
+        canvas_width = 2*self.offset + (board_size-1)*self.cell_size
+        self.canvas = tk.Canvas(self.window, 
+                               width=canvas_width,
+                               height=canvas_width, 
+                               bg="#DEB887")
+        self.canvas.pack()
+
+        # 游戏数据初始化
+        self.board = [[None for _ in range(board_size)] for _ in range(board_size)]
+        self.game_over = False
+
+        # 界面绘制
+        self.draw_board()
+        self.canvas.bind("<Button-1>", self.on_click)  # 绑定鼠标左键点击事件
+
+        # 状态栏
+        self.status_var = tk.StringVar()
+        self.status_var.set(f"当前玩家：黑棋 ●")
+        status_label = tk.Label(self.window, textvariable=self.status_var,
+                               font=('微软雅黑', 12))
+        status_label.pack(pady=8)
+
+        # 操作按钮
+        tk.Button(self.window, text="重新开始", command=self.reset, 
+                 font=('宋体', 10)).pack(side=tk.LEFT, padx=20)
+        tk.Button(self.window, text="退出游戏", command=self.window.quit,
+                 font=('宋体', 10)).pack(side=tk.RIGHT, padx=20)
+
+    def draw_board(self):
+        """ 绘制棋盘网格线 """
+        for i in range(self.board_size):
+            # 横向线
+            x0 = self.offset
+            y0 = self.offset + i * self.cell_size
+            x1 = self.offset + (self.board_size-1)*self.cell_size
+            self.canvas.create_line(x0, y0, x1, y0, width=2)
+
+            # 纵向线
+            x0 = self.offset + i * self.cell_size
+            y0 = self.offset
+            y1 = self.offset + (self.board_size-1)*self.cell_size
+            self.canvas.create_line(x0, y0, x0, y1, width=2)
+
+    def get_grid_pos(self, x, y):
+        """ 将像素坐标转换为棋盘坐标 """
+        grid_x = round((x - self.offset)/self.cell_size)
+        grid_y = round((y - self.offset)/self.cell_size)
+        return grid_x, grid_y
+
+    def draw_piece(self, x, y):
+        """ 在指定位置绘制棋子 """
+        cx = self.offset + x * self.cell_size
+        cy = self.offset + y * self.cell_size
+        radius = self.cell_size*0.4
+        color = "black" if self.player == "black" else "white"
+        outline = "white" if color == "black" else "black"
+
+        self.board[y][x] = self.player  # 记录棋子位置
+        self.canvas.create_oval(cx-radius, cy-radius,
+                               cx+radius, cy+radius,
+                               fill=color, outline=outline, width=2)
+
+    def on_click(self, event):
+        """ 鼠标点击事件处理 """
+        if self.game_over:
+            return
+
+        x, y = self.get_grid_pos(event.x, event.y)
+
+        # 判断落点有效性
+        if 0<=x<self.board_size and 0<=y<self.board_size and not self.board[y][x]:
+            self.draw_piece(x, y)
+
+            if self.check_win(x, y):
+                winner = "黑棋 ●" if self.player == "black" else "白棋 ○"
+                messagebox.showinfo("游戏结束", f"{winner} 获胜！")
+                self.game_over = True
+            else:
+                # 切换玩家
+                self.player = "white" if self.player == "black" else "black"
+                self.status_var.set(f"当前玩家：{'黑棋 ●' if self.player=='black' else '白棋 ○'}")
+
+    def check_win(self, x, y):
+        """ 胜负判断（四方向五连检测）"""
+        directions = [
+            (1, 0),   # 水平
+            (0, 1),   # 垂直
+            (1, 1),   # 主对角线
+            (1, -1)   # 副对角线
+        ]
+
+        for dx, dy in directions:
+            count = 1
+            # 正向检测
+            i, j = x+dx, y+dy
+            while 0<=i<self.board_size and 0<=j<self.board_size:
+                if self.board[j][i] == self.player:
+                    count +=1
+                    i += dx
+                    j += dy
+                else:
+                    break
+            # 反向检测
+            i, j = x-dx, y-dy
+            while 0<=i<self.board_size and 0<=j<self.board_size:
+                if self.board[j][i] == self.player:
+                    count +=1
+                    i -= dx
+                    j -= dy
+                else:
+                    break
+            if count >=5:
+                return True
+        return False
+
+    def reset(self):
+        """ 重置游戏 """
+        self.canvas.delete("all")
+        self.board = [[None for _ in range(self.board_size)] 
+                     for _ in range(self.board_size)]
+        self.player = "black"
+        self.game_over = False
+        self.status_var.set("当前玩家：黑棋 ●")
+        self.draw_board()
+
+    def run(self):
+        self.window.mainloop()
+
+if __name__ == "__main__":
+    game = GomokuGUI()
+    game.run()
